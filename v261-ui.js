@@ -10,18 +10,12 @@ function v261ProgressClose(){document.querySelector('#v261Progress')?.remove();v
 function v261Player(p={}){return{id:p.id||uid(),role:p.role||'Non specificato',number:String(p.number||''),surname:String(p.surname||'').trim().toUpperCase(),name:String(p.name||'').trim().toUpperCase(),birth:p.birth||'',status:p.status||((+p.number>0&&+p.number<=15)?'FIELD':'BENCH'),flags:p.flags||[],source:p.source||'MANUAL',confidence:p.confidence??null}}
 function v261Sort(xs){return xs.sort((a,b)=>(+a.number||999)-(+b.number||999)||v261FullName(a).localeCompare(v261FullName(b),'it'))}
 function v261ParseOcr(text,source='OCR'){
- const out=[],seen=new Set();
- for(let raw of String(text||'').split(/\r?\n/)){
-  let line=raw.replace(/[|]/g,' ').replace(/\s+/g,' ').trim(); if(line.length<4)continue;
-  let number=(line.match(/(?:^|\s)(\d{1,2})(?=\s|[.):-])/ )||[])[1]||'';
-  if(!number){let m=line.match(/^\s*(\d{1,2})\b/);number=m?.[1]||''}
-  if(!number||+number>99)continue;
-  line=line.replace(new RegExp(`^\\s*(?:n[.°]?\\s*)?${number}\\s*[-.:)]?\\s*`,'i'),'');
-  let birth=(line.match(/\b\d{2}[\/.\-]\d{2}[\/.\-]\d{4}\b/)||[])[0]||''; if(birth)line=line.replace(birth,' ');
-  line=line.replace(/\b(?:titolare|panchina|riserva|capitano|vice|1l)\b/ig,' ').replace(/\b\d{5,8}\b/g,' ').replace(/[^A-Za-zÀ-ž' ,.-]/g,' ').replace(/\s+/g,' ').trim();
-  if(line.length<2)continue;let n=v261SplitName(line),key=`${number}|${norm(n.surname)}|${norm(n.name)}`;if(seen.has(key))continue;seen.add(key);
-  out.push(v261Player({number,...n,birth:birth.replace(/[.\-]/g,'/'),source,confidence:null}));
- }
+ const raw=String(text||'').replace(/\r/g,'\n'),out=[],seen=new Set();
+ const add=(number,role,full,birth='')=>{number=String(number||'').replace(/\D/g,'');if(!number||+number<1||+number>40)return;full=String(full||'').replace(/\s*\((?:C|V|1L)\)\s*/gi,' ').replace(/\s+/g,' ').trim();if(full.length<3)return;let n=v261SplitName(full),key=`${number}|${norm(n.surname)}|${norm(n.name)}`;if(seen.has(key))return;seen.add(key);out.push(v261Player({number,role:role||'Non specificato',...n,birth:String(birth||'').replace(/[.\-]/g,'/'),source}))};
+ let flat=raw.replace(/[|]/g,' ').replace(/[—–]/g,'-').replace(/\s+/g,' '),m;
+ let fir=/(?:^|\s)(\d{1,2})\s+([A-Z0-9]{1,3})\s+([A-ZÀ-Ž' -]{2,}\s*,\s*[A-ZÀ-Ž' -]{2,}(?:\s+\((?:C|V|1L)\))*)\s+\d{5,7}\s+(\d{2}[\/.\-]\d{2}[\/.\-]\d{4})/gi;
+ while((m=fir.exec(flat)))add(m[1],m[2],m[3],m[4]);
+ if(out.length<5)for(let line of raw.split(/\n+/)){line=line.replace(/[|]/g,' ').replace(/\s+/g,' ').trim();let x=line.match(/^\s*(\d{1,2})\s+([A-Z0-9]{1,3})\s+(.+?)(?=\s+\d{5,7}(?:\s|$)|\s+\d{2}[\/.\-]\d{2}[\/.\-]\d{4}|$)/i);if(x){let birth=(line.match(/\b\d{2}[\/.\-]\d{2}[\/.\-]\d{4}\b/)||[])[0]||'';add(x[1],x[2],x[3],birth)}}
  return v261Sort(out)
 }
 async function v261OcrImage(input,label='Immagine'){
