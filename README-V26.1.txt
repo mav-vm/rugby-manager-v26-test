@@ -1,12 +1,12 @@
-RUGBY MATCH MANAGER FIR V26.1.3
+RUGBY MATCH MANAGER FIR V26.1.4
 
-Questa versione riparte dalla v26.1 iniziale e separa i tre percorsi:
-1. PDF FIR originale avversari: usa pdfText() + lo stesso parseFir() della nostra lista.
-2. Scansione/foto: OCR soltanto su richiesta e con revisione.
-3. Inserimento manuale: sempre disponibile.
+Il percorso PDF FIR originale resta invariato e usa pdfText() + parseFir().
+La modifica riguarda soltanto scansioni e fotografie:
+- ricerca automatica delle linee orizzontali della tabella;
+- estrazione delle righe giocatori;
+- uso delle sole prime tre colonne: maglia, ruolo, cognome/nome;
+- ricomposizione delle righe su sfondo bianco prima dell'OCR;
+- esclusione di intestazione, documenti, staff, firme e testo legale.
 
-Caricare tutti i file dello ZIP nella radice del repository.
-Sostituire index.html, manifest.json, service-worker.js, v261-ui.js e v261.css.
-Non eliminare app.js, style.css, librerie, icone e firma.
-
-Cache: rugby-fir-v26-1-3-full
+Sostituire tutti i file dello ZIP nella radice del repository.
+Cache: rugby-fir-v26-1-4-full

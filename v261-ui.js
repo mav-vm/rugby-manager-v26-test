@@ -24,6 +24,28 @@ function v261ParseOcr(text,source='OCR'){
  }
  return v261Sort(out)
 }
+
+async function v264SourceCanvas(input){
+ if(input instanceof HTMLCanvasElement)return input;
+ const bmp=await createImageBitmap(input),c=document.createElement('canvas');c.width=bmp.width;c.height=bmp.height;c.getContext('2d').drawImage(bmp,0,0);bmp.close?.();return c
+}
+function v264FindTableRows(src){
+ const ctx=src.getContext('2d',{willReadFrequently:true}),w=src.width,h=src.height,data=ctx.getImageData(0,0,w,h).data;
+ const x0=Math.floor(w*.015),x1=Math.floor(w*.79),from=Math.floor(h*.07),to=Math.floor(h*.62),scores=[];
+ for(let y=from;y<to;y+=2){let dark=0;for(let x=x0;x<x1;x+=4){let i=(y*w+x)*4;if((data[i]+data[i+1]+data[i+2])/3<105)dark++}scores.push([y,dark/Math.max(1,(x1-x0)/4)])}
+ let lines=[],run=[];for(const [y,v] of scores){if(v>.34)run.push(y);else if(run.length){lines.push(Math.round((run[0]+run.at(-1))/2));run=[]}}if(run.length)lines.push(Math.round((run[0]+run.at(-1))/2));
+ lines=lines.filter((y,i)=>!i||y-lines[i-1]>5);
+ let bands=[];for(let i=0;i<lines.length-1;i++){let a=lines[i],b=lines[i+1],rh=b-a;if(rh>18&&rh<h*.035)bands.push([a+2,b-2])}
+ return bands
+}
+async function v264PrepareTable(input){
+ const src=await v264SourceCanvas(input),bands=v264FindTableRows(src),usable=bands.filter(([a,b])=>b-a>18).slice(0,32);
+ if(usable.length<10)return src;
+ const cropW=Math.floor(src.width*.61),rowH=72,pad=10,out=document.createElement('canvas');out.width=1700;out.height=usable.length*(rowH+pad)+pad;
+ const c=out.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,out.width,out.height);c.filter='grayscale(1) contrast(1.7)';
+ usable.forEach(([a,b],i)=>{let y=pad+i*(rowH+pad);c.drawImage(src,Math.floor(src.width*.015),a,cropW,b-a,12,y,out.width-24,rowH)});
+ return out
+}
 async function v261OcrImage(input,label='Immagine'){
  let result=await Tesseract.recognize(input,'ita',{logger:m=>{if(m.status==='recognizing text')v261ProgressUpdate(`${label}: riconoscimento OCR ${Math.round((m.progress||0)*100)}%`,Math.round((m.progress||0)*100))}});
  return result.data.text||''
@@ -31,10 +53,10 @@ async function v261OcrImage(input,label='Immagine'){
 async function v261PdfToOcr(file){
  let pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,all='';
  for(let i=1;i<=pdf.numPages;i++){
-  v261ProgressUpdate(`Pagina ${i} di ${pdf.numPages}: preparazione immagine`,Math.round((i-1)/pdf.numPages*100));
-  let pg=await pdf.getPage(i),vp=pg.getViewport({scale:2}),canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;
-  await pg.render({canvasContext:canvas.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;
-  all+='\n'+await v261OcrImage(canvas,`Pagina ${i} di ${pdf.numPages}`);
+  v261ProgressUpdate(`Pagina ${i} di ${pdf.numPages}: rilevamento righe tabella`,12);
+  let pg=await pdf.getPage(i),vp=pg.getViewport({scale:2.5}),full=document.createElement('canvas');full.width=vp.width;full.height=vp.height;
+  await pg.render({canvasContext:full.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;
+  let table=await v264PrepareTable(full);all+='\n'+await v261OcrImage(table,`Pagina ${i} di ${pdf.numPages}`)
  }
  return all
 }
@@ -61,7 +83,7 @@ async function v261RunOcr(file,source){
  if(v261Busy)return;v261Busy=true;v261Progress('Riconoscimento lista avversaria','Avvio OCR…',5);
  try{
   let text='';
-  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name))text=await v261PdfToOcr(file);else text=await v261OcrImage(file,'Immagine');
+  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name))text=await v261PdfToOcr(file);else{text=await v261OcrImage(await v264PrepareTable(file),'Immagine tabella')}
   const players=v261ParseOcr(text,source);v261ProgressClose();editAway(players,{source:`${source} · ${players.length} righe proposte`});
   toast(players.length?`${players.length} righe OCR da controllare`:'OCR senza risultati: inserisci la lista manualmente');
  }catch(err){console.error(err);v261ProgressClose();toast('OCR non riuscito: usa inserimento manuale');editAway([],{source:'Manuale'})}
