@@ -56,3 +56,36 @@ v261ParseOcr=function(text,source='OCR PDF'){
  if(out.length===22&&missing.length===1&&missing[0]>=16&&all.length){let m=all.at(-1).m,tail=m[3].replace(/\b\d{5,8}\b.*$/,'').trim(),a=tail.split(/\s+/);out.push(v261Player({number:String(missing[0]),role:'RI',surname:a.shift()||'',name:a.join(' '),status:'BENCH',source}))}
  return v261Sort(out)
 };
+
+// v26.1.7: secondo passaggio OCR sulla fascia completa della tabella e fusione per maglia.
+async function v2617FullTableCanvas(input){
+ let src;if(input instanceof HTMLCanvasElement)src=input;else{const bmp=await createImageBitmap(input);src=document.createElement('canvas');src.width=bmp.width;src.height=bmp.height;src.getContext('2d').drawImage(bmp,0,0);bmp.close?.()}
+ const out=document.createElement('canvas'),sx=Math.floor(src.width*.01),sy=Math.floor(src.height*.075),sw=Math.floor(src.width*.68),sh=Math.floor(src.height*.57);
+ out.width=Math.max(1700,Math.floor(sw*1.45));out.height=Math.floor(sh*1.45);const c=out.getContext('2d',{willReadFrequently:true});c.fillStyle='#fff';c.fillRect(0,0,out.width,out.height);c.filter='grayscale(1) contrast(1.45)';c.drawImage(src,sx,sy,sw,sh,0,0,out.width,out.height);return out
+}
+function v2617Quality(p){const role=p.role&&p.role!=='Non specificato'?30:0,name=v261FullName(p),letters=(name.match(/[A-ZÀ-Ž]/gi)||[]).length,bad=(name.match(/[^A-ZÀ-Ž' .,-]/gi)||[]).length;return role+letters-bad*3}
+function v2617MergePlayers(first,second){
+ const map=new Map();for(const p of [...first,...second]){const n=+p.number;if(n<1||n>23)continue;const old=map.get(n);if(!old||v2617Quality(p)>v2617Quality(old))map.set(n,p)}
+ return v261Sort([...map.values()])
+}
+const v2617RunOcrBase=v261RunOcr;
+v261RunOcr=async function(file,source){
+ if(v261Busy)return;v261Busy=true;v261Progress('Riconoscimento lista avversaria','Primo passaggio: lettura per righe…',5);
+ try{
+  let firstText='',secondInput;
+  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name)){
+   const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,allFirst=[],allSecond=[];
+   for(let i=1;i<=pdf.numPages;i++){
+    const pg=await pdf.getPage(i),vp=pg.getViewport({scale:2.5}),full=document.createElement('canvas');full.width=vp.width;full.height=vp.height;await pg.render({canvasContext:full.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;
+    v261ProgressUpdate(`Pagina ${i}: primo passaggio per righe…`,15);allFirst.push(await v261OcrImage(await v264PrepareTable(full),`Pagina ${i} · righe`));
+    v261ProgressUpdate(`Pagina ${i}: secondo passaggio tabella completa…`,55);allSecond.push(await v261OcrImage(await v2617FullTableCanvas(full),`Pagina ${i} · tabella`));
+   }
+   firstText=allFirst.join('\n');secondInput=allSecond.join('\n')
+  }else{
+   v261ProgressUpdate('Primo passaggio per righe…',15);firstText=await v261OcrImage(await v264PrepareTable(file),'Immagine · righe');
+   v261ProgressUpdate('Secondo passaggio tabella completa…',55);secondInput=await v261OcrImage(await v2617FullTableCanvas(file),'Immagine · tabella')
+  }
+  const first=v261ParseOcr(firstText,source),second=v261ParseOcr(secondInput,source),players=v2615RepairNumbers(v2617MergePlayers(first,second));
+  v261ProgressClose();editAway(players,{source:`${source} · ${players.length} righe unite (${first.length}+${second.length})`});toast(`${players.length} righe OCR da controllare`)
+ }catch(err){console.error(err);v261ProgressClose();toast('OCR non riuscito: usa inserimento manuale');editAway([],{source:'Manuale'})}
+};
