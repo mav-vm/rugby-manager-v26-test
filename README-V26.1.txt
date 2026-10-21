@@ -1,13 +1,12 @@
-V26.1.2 - CORREZIONE OCR MODELLO B
+RUGBY MATCH MANAGER FIR V26.1.3
 
-Sostituire tutti i file presenti nello ZIP nella radice del repository.
+Questa versione riparte dalla v26.1 iniziale e separa i tre percorsi:
+1. PDF FIR originale avversari: usa pdfText() + lo stesso parseFir() della nostra lista.
+2. Scansione/foto: OCR soltanto su richiesta e con revisione.
+3. Inserimento manuale: sempre disponibile.
+
+Caricare tutti i file dello ZIP nella radice del repository.
+Sostituire index.html, manifest.json, service-worker.js, v261-ui.js e v261.css.
 Non eliminare app.js, style.css, librerie, icone e firma.
 
-Correzioni:
-- OCR limitato alla tabella giocatori, escludendo intestazione, note e firme
-- accettati solo numeri maglia 1-23
-- accettati solo ruoli FIR validi
-- obbligatoria la struttura COGNOME,NOME
-- eliminazione dei falsi giocatori ricavati da data, orario e testo legale
-- titolari 1-15, panchina 16-23
-- cache aggiornata a rugby-fir-v26-1-2-full
+Cache: rugby-fir-v26-1-3-full

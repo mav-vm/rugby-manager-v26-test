@@ -10,20 +10,19 @@ function v261ProgressClose(){document.querySelector('#v261Progress')?.remove();v
 function v261Player(p={}){return{id:p.id||uid(),role:p.role||'Non specificato',number:String(p.number||''),surname:String(p.surname||'').trim().toUpperCase(),name:String(p.name||'').trim().toUpperCase(),birth:p.birth||'',status:p.status||((+p.number>0&&+p.number<=15)?'FIELD':'BENCH'),flags:p.flags||[],source:p.source||'MANUAL',confidence:p.confidence??null}}
 function v261Sort(xs){return xs.sort((a,b)=>(+a.number||999)-(+b.number||999)||v261FullName(a).localeCompare(v261FullName(b),'it'))}
 function v261ParseOcr(text,source='OCR'){
- const roles='E|AD|AS|CS|CD|MA|MM|3C|3D|3S|2D|2S|PD|PS|T|RI';
- const raw=String(text||'').replace(/\r/g,'\n'),out=[],seen=new Set();
- const add=(number,role,full,birth='')=>{number=String(number||'').replace(/\D/g,'');role=String(role||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(!number||+number<1||+number>23||!new RegExp(`^(?:${roles})$`).test(role))return;full=String(full||'').replace(/\s*\((?:C|V|1L)\)\s*/gi,' ').replace(/[^A-ZÀ-Ž' ,.-]/gi,' ').replace(/\s+/g,' ').trim();if(!full.includes(',')||full.length<5)return;let n=v261SplitName(full),key=number;if(seen.has(key))return;seen.add(key);out.push(v261Player({number,role,...n,birth:String(birth||'').replace(/[.\-]/g,'/'),status:+number<=15?'FIELD':'BENCH',source}))};
- let flat=raw.replace(/[|]/g,' ').replace(/[—–]/g,'-').replace(/\s+/g,' '),m;
- let strict=new RegExp(`(?:^|\\s)(\\d{1,2})\\s+(${roles})\\s+([A-ZÀ-Ž' -]{2,}\\s*,\\s*[A-ZÀ-Ž' -]{2,}(?:\\s+\\((?:C|V|1L)\\))*)\\s+\\d{5,7}\\s+(\\d{2}[\\/.\\-]\\d{2}[\\/.\\-]\\d{4})`,'gi');
- while((m=strict.exec(flat)))add(m[1],m[2],m[3],m[4]);
- for(let line of raw.split(/\n+/)){line=line.replace(/[|]/g,' ').replace(/\s+/g,' ').trim();let x=line.match(new RegExp(`^\\s*(\\d{1,2})\\s+(${roles})\\s+(.+?)(?=\\s+\\d{5,7}(?:\\s|$)|\\s+\\d{2}[\\/.\\-]\\d{2}[\\/.\\-]\\d{4}|$)`,'i'));if(x){let birth=(line.match(/\b\d{2}[\/.\-]\d{2}[\/.\-]\d{4}\b/)||[])[0]||'';add(x[1],x[2],x[3],birth)}}
+ const out=[],seen=new Set();
+ for(let raw of String(text||'').split(/\r?\n/)){
+  let line=raw.replace(/[|]/g,' ').replace(/\s+/g,' ').trim(); if(line.length<4)continue;
+  let number=(line.match(/(?:^|\s)(\d{1,2})(?=\s|[.):-])/ )||[])[1]||'';
+  if(!number){let m=line.match(/^\s*(\d{1,2})\b/);number=m?.[1]||''}
+  if(!number||+number>99)continue;
+  line=line.replace(new RegExp(`^\\s*(?:n[.°]?\\s*)?${number}\\s*[-.:)]?\\s*`,'i'),'');
+  let birth=(line.match(/\b\d{2}[\/.\-]\d{2}[\/.\-]\d{4}\b/)||[])[0]||''; if(birth)line=line.replace(birth,' ');
+  line=line.replace(/\b(?:titolare|panchina|riserva|capitano|vice|1l)\b/ig,' ').replace(/\b\d{5,8}\b/g,' ').replace(/[^A-Za-zÀ-ž' ,.-]/g,' ').replace(/\s+/g,' ').trim();
+  if(line.length<2)continue;let n=v261SplitName(line),key=`${number}|${norm(n.surname)}|${norm(n.name)}`;if(seen.has(key))continue;seen.add(key);
+  out.push(v261Player({number,...n,birth:birth.replace(/[.\-]/g,'/'),source,confidence:null}));
+ }
  return v261Sort(out)
-}
-async function v261CropImage(input){
- let bmp=await createImageBitmap(input),canvas=document.createElement('canvas');
- // Il Mod. B FIR ha la tabella giocatori circa fra il 9% e il 55% dell'altezza.
- let sy=Math.round(bmp.height*.085),sh=Math.round(bmp.height*.49);canvas.width=Math.round(bmp.width*1.6);canvas.height=Math.round(sh*1.6);
- let c=canvas.getContext('2d',{willReadFrequently:true});c.filter='grayscale(1) contrast(1.45)';c.drawImage(bmp,0,sy,bmp.width,sh,0,0,canvas.width,canvas.height);bmp.close?.();return canvas
 }
 async function v261OcrImage(input,label='Immagine'){
  let result=await Tesseract.recognize(input,'ita',{logger:m=>{if(m.status==='recognizing text')v261ProgressUpdate(`${label}: riconoscimento OCR ${Math.round((m.progress||0)*100)}%`,Math.round((m.progress||0)*100))}});
@@ -33,24 +32,39 @@ async function v261PdfToOcr(file){
  let pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,all='';
  for(let i=1;i<=pdf.numPages;i++){
   v261ProgressUpdate(`Pagina ${i} di ${pdf.numPages}: preparazione immagine`,Math.round((i-1)/pdf.numPages*100));
-  let pg=await pdf.getPage(i),vp=pg.getViewport({scale:2}),full=document.createElement('canvas');full.width=vp.width;full.height=vp.height;
-  await pg.render({canvasContext:full.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;
-  let sy=Math.round(full.height*.085),sh=Math.round(full.height*.49),canvas=document.createElement('canvas');canvas.width=Math.round(full.width*1.35);canvas.height=Math.round(sh*1.35);canvas.getContext('2d').drawImage(full,0,sy,full.width,sh,0,0,canvas.width,canvas.height);
+  let pg=await pdf.getPage(i),vp=pg.getViewport({scale:2}),canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;
+  await pg.render({canvasContext:canvas.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;
   all+='\n'+await v261OcrImage(canvas,`Pagina ${i} di ${pdf.numPages}`);
  }
  return all
 }
-async function v261ImportAway(e){
- let f=e.target.files?.[0];e.target.value='';if(!f||v261Busy)return;v261Busy=true;v261Progress('Analisi lista avversaria','Controllo del file…',5);
+async function v261ImportAwayFirPdf(e){
+ const f=e.target.files?.[0];e.target.value='';if(!f||v261Busy)return;
+ v261Busy=true;v261Progress('Lettura PDF FIR avversari','Estrazione del testo dal PDF originale…',15);
  try{
-  let players=[],source='';
-  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){
-   v261ProgressUpdate('Lettura del testo PDF…',12);let text=await pdfText(f),r=parseFir(text);
-   if(r.players?.length){players=r.players.map(p=>v261Player({...p,role:p.role||'Non specificato',firCard:undefined,flags:[],source:'PDF'}));source='PDF testuale'}
-   else{v261ProgressUpdate('PDF scannerizzato: avvio OCR…',20);players=v261ParseOcr(await v261PdfToOcr(f),'OCR PDF');source='OCR PDF'}
-  }else{v261ProgressUpdate('Avvio OCR immagine…',10);let cropped=await v261CropImage(f);players=v261ParseOcr(await v261OcrImage(cropped,'Immagine'),'OCR immagine');source='OCR immagine'}
-  v261ProgressClose();editAway(players,{source});if(!players.length)toast('Nessuna riga trovata: completa la lista manualmente');
- }catch(err){console.error(err);v261ProgressClose();toast('Importazione non riuscita: usa inserimento manuale');editAway([],{source:'Manuale'})}
+  const text=await pdfText(f);
+  if(!text||text.replace(/\s/g,'').length<80){v261ProgressClose();return v261AskOcrPdf(f,'Il PDF non contiene testo selezionabile e sembra una scansione. Vuoi provare con OCR?')}
+  const r=parseFir(text);
+  if(r.players?.length){
+   const players=r.players.map(p=>v261Player({...p,role:p.role||'Non specificato',firCard:undefined,flags:p.flags||[],source:'PDF FIR'}));
+   v261ProgressClose();editAway(players,{source:`PDF FIR · ${players.length} giocatori`});toast(`${players.length} giocatori avversari letti dal PDF FIR`);return;
+  }
+  v261ProgressClose();v261AskOcrPdf(f,'Il PDF contiene testo, ma la lista FIR non è stata riconosciuta. Vuoi tentare l’OCR oppure inserirla manualmente?');
+ }catch(err){console.error(err);v261ProgressClose();v261AskOcrPdf(f,'Non è stato possibile leggere il PDF come lista FIR. Vuoi tentare l’OCR?')}
+}
+function v261AskOcrPdf(file,message){
+ document.body.insertAdjacentHTML('beforeend',`<div class="modal"><div class="modalbox decisionbox"><h2>PDF FIR non riconosciuto</h2><p>${esc(message)}</p><div class="decision-actions"><button id="ocrPdfNow" class="btn">Avvia OCR</button><button id="manualPdfNow" class="outline">Inserimento manuale</button><button id="cancelPdfNow" class="outline">Annulla</button></div></div></div>`);
+ const m=document.querySelector('.modal');m.querySelector('#ocrPdfNow').onclick=()=>{m.remove();v261RunOcr(file,'OCR PDF')};m.querySelector('#manualPdfNow').onclick=()=>{m.remove();editAway([],{source:'Manuale'})};m.querySelector('#cancelPdfNow').onclick=()=>m.remove();
+}
+async function v261ImportAwayImage(e){const f=e.target.files?.[0];e.target.value='';if(f)await v261RunOcr(f,'OCR immagine')}
+async function v261RunOcr(file,source){
+ if(v261Busy)return;v261Busy=true;v261Progress('Riconoscimento lista avversaria','Avvio OCR…',5);
+ try{
+  let text='';
+  if(file.type==='application/pdf'||/\.pdf$/i.test(file.name))text=await v261PdfToOcr(file);else text=await v261OcrImage(file,'Immagine');
+  const players=v261ParseOcr(text,source);v261ProgressClose();editAway(players,{source:`${source} · ${players.length} righe proposte`});
+  toast(players.length?`${players.length} righe OCR da controllare`:'OCR senza risultati: inserisci la lista manualmente');
+ }catch(err){console.error(err);v261ProgressClose();toast('OCR non riuscito: usa inserimento manuale');editAway([],{source:'Manuale'})}
 }
 function v261EditorRow(p){p=v261Player(p);return`<article class="player-edit" data-id="${p.id}"><div class="player-edit-head"><b>#${esc(p.number||'-')} ${esc(v261FullName(p)||'Nuovo giocatore')}</b><button type="button" class="icon danger-soft del-away" aria-label="Elimina">✕</button></div><div class="editor-grid"><label>Ruolo<select class="role">${v261RoleOptions(p.role)}</select></label><label>N. maglia<input class="num" inputmode="numeric" value="${esc(p.number)}"></label><label class="wide">Nome e cognome<input class="fullname" value="${esc(v261FullName(p))}"></label><label>Posizione<select class="st"><option value="FIELD" ${p.status==='FIELD'?'selected':''}>Titolare</option><option value="BENCH" ${p.status!=='FIELD'?'selected':''}>Panchina</option></select></label></div><small class="source">Origine: ${esc(p.source||'MANUAL')}</small></article>`}
 function editAway(list=[],meta={}){
@@ -69,9 +83,9 @@ function setup(){
  <section class="hero card"><div><small>PASSO 1</small><h2>Dati della partita</h2><p>Puoi correggere i dati estratti dalla lista FIR prima di aprire il tabellone.</p></div></section>
  <section class="card grid setup-grid"><label>Data<input id="date" type="date" value="${esc(s.date)}"></label><label>Categoria<select id="category">${['Seniores','Under 18','Under 16','Under 14'].map(x=>`<option ${x===s.category?'selected':''}>${x}</option>`).join('')}</select></label><label>Squadra mia<input id="home" value="${esc(s.home)}"></label><label>Sede<select id="venue"><option ${s.venue==='CASA'?'selected':''}>CASA</option><option ${s.venue==='TRASFERTA'?'selected':''}>TRASFERTA</option></select></label><label>Squadra avversaria<input id="away" value="${esc(s.away)}"></label><label>Minuti per tempo<input id="half" type="number" min="1" value="${s.minutesPerHalf}"></label></section>
  <section class="card import-card"><div class="section-head"><div><small>PASSO 2</small><h2>Lista gara della mia squadra</h2></div><span class="status ${homeOk?'ok':''}">${homeOk?`✓ ${S.homeRoster.length} giocatori`:'Non importata'}</span></div><label class="btn upload">Importa PDF FIR<input id="homePdf" type="file" accept="application/pdf" hidden></label></section>
- <section class="card import-card"><div class="section-head"><div><small>PASSO 3</small><h2>Lista squadra avversaria</h2></div><span class="status ${awayOk?'ok':''}">${awayOk?`✓ ${S.awayRoster.length} giocatori`:'Facoltativa'}</span></div><p class="help">Accetta PDF testuali, PDF scannerizzati, JPG e PNG. I risultati OCR si controllano prima del salvataggio.</p><div class="import-actions"><label class="btn upload">Importa PDF o immagine<input id="awayFile" type="file" accept=".pdf,application/pdf,image/*" hidden></label><label class="outline upload">Scatta foto<input id="awayCamera" type="file" accept="image/*" capture="environment" hidden></label><button id="manualAway" class="outline">Inserimento manuale</button></div></section>
+ <section class="card import-card"><div class="section-head"><div><small>PASSO 3</small><h2>Lista squadra avversaria</h2></div><span class="status ${awayOk?'ok':''}">${awayOk?`✓ ${S.awayRoster.length} giocatori`:'Facoltativa'}</span></div><p class="help"><b>Prima scelta:</b> chiedi il PDF FIR originale, che viene letto con lo stesso sistema della nostra lista. Usa OCR solo per scansioni o fotografie.</p><div class="away-paths"><label class="btn upload path-main"><span>1</span><b>Importa PDF FIR originale</b><small>Lettura diretta, senza OCR</small><input id="awayFirPdf" type="file" accept="application/pdf,.pdf" hidden></label><label class="outline upload"><span>2</span><b>Scansiona o fotografa</b><small>OCR con revisione obbligatoria</small><input id="awayScan" type="file" accept="image/*" capture="environment" hidden></label><label class="outline upload"><span>2</span><b>Importa immagine</b><small>JPG o PNG già salvato</small><input id="awayImage" type="file" accept="image/*" hidden></label><button id="manualAway" class="outline path-manual"><span>3</span><b>Inserimento manuale</b><small>Ruolo, maglia, nome e cognome</small></button></div></section>
  <section class="card final-step"><div><small>PASSO 4</small><h2>Apri il tabellone</h2><p>La lista avversaria è facoltativa. Senza nominativo userai “NN - Giocatore non definito”.</p></div><button id="start" class="btn start-btn">APRI TABELLONE</button></section>`;
- document.querySelector('#homePdf').onchange=importHomePdf;document.querySelector('#awayFile').onchange=v261ImportAway;document.querySelector('#awayCamera').onchange=v261ImportAway;document.querySelector('#manualAway').onclick=()=>editAway([],{source:'Manuale'});
+ document.querySelector('#homePdf').onchange=importHomePdf;document.querySelector('#awayFirPdf').onchange=v261ImportAwayFirPdf;document.querySelector('#awayScan').onchange=v261ImportAwayImage;document.querySelector('#awayImage').onchange=v261ImportAwayImage;document.querySelector('#manualAway').onclick=()=>editAway([],{source:'Manuale'});
  ['date','category','home','away','venue'].forEach(k=>document.querySelector('#'+k).onchange=e=>{S.setup[k]=e.target.value;save()});document.querySelector('#half').onchange=e=>{S.setup.minutesPerHalf=+e.target.value||40;save()};document.querySelector('#start').onclick=()=>{startMatch();go('match')}
 }
 const v261ChoosePlayer=choosePlayer;
