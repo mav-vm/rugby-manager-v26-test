@@ -10,13 +10,20 @@ function v261ProgressClose(){document.querySelector('#v261Progress')?.remove();v
 function v261Player(p={}){return{id:p.id||uid(),role:p.role||'Non specificato',number:String(p.number||''),surname:String(p.surname||'').trim().toUpperCase(),name:String(p.name||'').trim().toUpperCase(),birth:p.birth||'',status:p.status||((+p.number>0&&+p.number<=15)?'FIELD':'BENCH'),flags:p.flags||[],source:p.source||'MANUAL',confidence:p.confidence??null}}
 function v261Sort(xs){return xs.sort((a,b)=>(+a.number||999)-(+b.number||999)||v261FullName(a).localeCompare(v261FullName(b),'it'))}
 function v261ParseOcr(text,source='OCR'){
+ const roles='E|AD|AS|CS|CD|MA|MM|3C|3D|3S|2D|2S|PD|PS|T|RI';
  const raw=String(text||'').replace(/\r/g,'\n'),out=[],seen=new Set();
- const add=(number,role,full,birth='')=>{number=String(number||'').replace(/\D/g,'');if(!number||+number<1||+number>40)return;full=String(full||'').replace(/\s*\((?:C|V|1L)\)\s*/gi,' ').replace(/\s+/g,' ').trim();if(full.length<3)return;let n=v261SplitName(full),key=`${number}|${norm(n.surname)}|${norm(n.name)}`;if(seen.has(key))return;seen.add(key);out.push(v261Player({number,role:role||'Non specificato',...n,birth:String(birth||'').replace(/[.\-]/g,'/'),source}))};
+ const add=(number,role,full,birth='')=>{number=String(number||'').replace(/\D/g,'');role=String(role||'').toUpperCase().replace(/[^A-Z0-9]/g,'');if(!number||+number<1||+number>23||!new RegExp(`^(?:${roles})$`).test(role))return;full=String(full||'').replace(/\s*\((?:C|V|1L)\)\s*/gi,' ').replace(/[^A-ZÀ-Ž' ,.-]/gi,' ').replace(/\s+/g,' ').trim();if(!full.includes(',')||full.length<5)return;let n=v261SplitName(full),key=number;if(seen.has(key))return;seen.add(key);out.push(v261Player({number,role,...n,birth:String(birth||'').replace(/[.\-]/g,'/'),status:+number<=15?'FIELD':'BENCH',source}))};
  let flat=raw.replace(/[|]/g,' ').replace(/[—–]/g,'-').replace(/\s+/g,' '),m;
- let fir=/(?:^|\s)(\d{1,2})\s+([A-Z0-9]{1,3})\s+([A-ZÀ-Ž' -]{2,}\s*,\s*[A-ZÀ-Ž' -]{2,}(?:\s+\((?:C|V|1L)\))*)\s+\d{5,7}\s+(\d{2}[\/.\-]\d{2}[\/.\-]\d{4})/gi;
- while((m=fir.exec(flat)))add(m[1],m[2],m[3],m[4]);
- if(out.length<5)for(let line of raw.split(/\n+/)){line=line.replace(/[|]/g,' ').replace(/\s+/g,' ').trim();let x=line.match(/^\s*(\d{1,2})\s+([A-Z0-9]{1,3})\s+(.+?)(?=\s+\d{5,7}(?:\s|$)|\s+\d{2}[\/.\-]\d{2}[\/.\-]\d{4}|$)/i);if(x){let birth=(line.match(/\b\d{2}[\/.\-]\d{2}[\/.\-]\d{4}\b/)||[])[0]||'';add(x[1],x[2],x[3],birth)}}
+ let strict=new RegExp(`(?:^|\\s)(\\d{1,2})\\s+(${roles})\\s+([A-ZÀ-Ž' -]{2,}\\s*,\\s*[A-ZÀ-Ž' -]{2,}(?:\\s+\\((?:C|V|1L)\\))*)\\s+\\d{5,7}\\s+(\\d{2}[\\/.\\-]\\d{2}[\\/.\\-]\\d{4})`,'gi');
+ while((m=strict.exec(flat)))add(m[1],m[2],m[3],m[4]);
+ for(let line of raw.split(/\n+/)){line=line.replace(/[|]/g,' ').replace(/\s+/g,' ').trim();let x=line.match(new RegExp(`^\\s*(\\d{1,2})\\s+(${roles})\\s+(.+?)(?=\\s+\\d{5,7}(?:\\s|$)|\\s+\\d{2}[\\/.\\-]\\d{2}[\\/.\\-]\\d{4}|$)`,'i'));if(x){let birth=(line.match(/\b\d{2}[\/.\-]\d{2}[\/.\-]\d{4}\b/)||[])[0]||'';add(x[1],x[2],x[3],birth)}}
  return v261Sort(out)
+}
+async function v261CropImage(input){
+ let bmp=await createImageBitmap(input),canvas=document.createElement('canvas');
+ // Il Mod. B FIR ha la tabella giocatori circa fra il 9% e il 55% dell'altezza.
+ let sy=Math.round(bmp.height*.085),sh=Math.round(bmp.height*.49);canvas.width=Math.round(bmp.width*1.6);canvas.height=Math.round(sh*1.6);
+ let c=canvas.getContext('2d',{willReadFrequently:true});c.filter='grayscale(1) contrast(1.45)';c.drawImage(bmp,0,sy,bmp.width,sh,0,0,canvas.width,canvas.height);bmp.close?.();return canvas
 }
 async function v261OcrImage(input,label='Immagine'){
  let result=await Tesseract.recognize(input,'ita',{logger:m=>{if(m.status==='recognizing text')v261ProgressUpdate(`${label}: riconoscimento OCR ${Math.round((m.progress||0)*100)}%`,Math.round((m.progress||0)*100))}});
@@ -26,8 +33,9 @@ async function v261PdfToOcr(file){
  let pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise,all='';
  for(let i=1;i<=pdf.numPages;i++){
   v261ProgressUpdate(`Pagina ${i} di ${pdf.numPages}: preparazione immagine`,Math.round((i-1)/pdf.numPages*100));
-  let pg=await pdf.getPage(i),vp=pg.getViewport({scale:2}),canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;
-  await pg.render({canvasContext:canvas.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;
+  let pg=await pdf.getPage(i),vp=pg.getViewport({scale:2}),full=document.createElement('canvas');full.width=vp.width;full.height=vp.height;
+  await pg.render({canvasContext:full.getContext('2d',{willReadFrequently:true}),viewport:vp}).promise;
+  let sy=Math.round(full.height*.085),sh=Math.round(full.height*.49),canvas=document.createElement('canvas');canvas.width=Math.round(full.width*1.35);canvas.height=Math.round(sh*1.35);canvas.getContext('2d').drawImage(full,0,sy,full.width,sh,0,0,canvas.width,canvas.height);
   all+='\n'+await v261OcrImage(canvas,`Pagina ${i} di ${pdf.numPages}`);
  }
  return all
@@ -40,7 +48,7 @@ async function v261ImportAway(e){
    v261ProgressUpdate('Lettura del testo PDF…',12);let text=await pdfText(f),r=parseFir(text);
    if(r.players?.length){players=r.players.map(p=>v261Player({...p,role:p.role||'Non specificato',firCard:undefined,flags:[],source:'PDF'}));source='PDF testuale'}
    else{v261ProgressUpdate('PDF scannerizzato: avvio OCR…',20);players=v261ParseOcr(await v261PdfToOcr(f),'OCR PDF');source='OCR PDF'}
-  }else{v261ProgressUpdate('Avvio OCR immagine…',10);players=v261ParseOcr(await v261OcrImage(f,'Immagine'),'OCR immagine');source='OCR immagine'}
+  }else{v261ProgressUpdate('Avvio OCR immagine…',10);let cropped=await v261CropImage(f);players=v261ParseOcr(await v261OcrImage(cropped,'Immagine'),'OCR immagine');source='OCR immagine'}
   v261ProgressClose();editAway(players,{source});if(!players.length)toast('Nessuna riga trovata: completa la lista manualmente');
  }catch(err){console.error(err);v261ProgressClose();toast('Importazione non riuscita: usa inserimento manuale');editAway([],{source:'Manuale'})}
 }
