@@ -1,40 +1,195 @@
-#v2634Camera{padding:0;background:#020617}.v2634-shell{width:100%;height:100%;display:grid;grid-template-rows:auto 1fr auto;color:#fff}.v2634-head,.v2634-actions{padding:12px;background:#0f172a;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.v2634-stage{position:relative;min-height:55vh;overflow:hidden;background:#020617;touch-action:none}.v2634-stage video,.v2634-stage canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}.v2634-guide{position:absolute;left:7%;right:7%;top:8%;bottom:8%;border:4px solid #34d399;border-radius:16px;box-shadow:0 0 0 2000px #0007;pointer-events:none}.v2634-guide:before,.v2634-guide:after{content:"";position:absolute;left:50%;top:50%;background:#34d39955;transform:translate(-50%,-50%)}.v2634-guide:before{width:1px;height:100%}.v2634-guide:after{height:1px;width:100%}.v2634-tip{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);background:#0f172acc;padding:7px 11px;border-radius:99px;font-weight:800;white-space:nowrap}.v2634-shutter{width:68px;height:68px;border-radius:50%;border:7px solid #fff;background:#10b981;box-shadow:0 0 0 3px #10b981}.v2634-corner{position:absolute;width:32px;height:32px;margin:-16px;border-radius:50%;background:#facc15;border:4px solid #fff;box-shadow:0 2px 10px #0009;touch-action:none}.v2634-poly{position:absolute;inset:0;pointer-events:none}.v2634-actions button{min-height:46px}.v2634-actions .btn{flex:1}.v2634-zoom{display:flex;gap:6px;align-items:center}.v2634-zoom b{min-width:55px;text-align:center}.v2634-error{padding:18px;text-align:center}.v2634-stage.adjust canvas{transform-origin:0 0}@media(max-width:650px){.v2634-head{align-items:flex-start}.v2634-head h2{font-size:18px;margin:0}.v2634-stage{min-height:62vh}.v2634-actions{justify-content:center}.v2634-actions button{padding:9px 10px}}
-.v2634-camera-launch{
-    width:100%;
-    margin-top:12px;
-    border:none;
-    border-radius:16px;
-    background:#059669;
-    color:#fff;
-    min-height:88px;
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
-    gap:4px;
-    cursor:pointer;
-    box-shadow:0 4px 12px rgba(0,0,0,.15);
+#v2634Camera {
+  padding: 0;
+  background: #020617;
 }
 
-.v2634-camera-launch:hover{
-    background:#047857;
+.v2634-shell {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  color: #fff;
 }
 
-.v2634-camera-icon{
-    font-size:32px;
-    line-height:1;
+.v2634-head,
+.v2634-actions {
+  padding: 12px;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.v2634-camera-title{
-    font-size:18px;
-    font-weight:800;
+.v2634-stage {
+  position: relative;
+  min-height: 55vh;
+  overflow: hidden;
+  background: #020617;
+  touch-action: none;
 }
 
-.v2634-camera-sub{
-    font-size:12px;
-    opacity:.9;
+.v2634-stage video,
+.v2634-stage canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
-#awayScan{
-    display:none !important;
+.v2634-guide {
+  position: absolute;
+  left: 7%;
+  right: 7%;
+  top: 8%;
+  bottom: 8%;
+  border: 4px solid #34d399;
+  border-radius: 16px;
+  box-shadow: 0 0 0 2000px #0007;
+  pointer-events: none;
+}
+
+.v2634-guide::before,
+.v2634-guide::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  background: #34d39955;
+  transform: translate(-50%, -50%);
+}
+
+.v2634-guide::before {
+  width: 1px;
+  height: 100%;
+}
+
+.v2634-guide::after {
+  height: 1px;
+  width: 100%;
+}
+
+.v2634-tip {
+  position: absolute;
+  left: 50%;
+  bottom: 4%;
+  transform: translateX(-50%);
+  background: #0f172acc;
+  padding: 7px 11px;
+  border-radius: 99px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.v2634-shutter {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: 7px solid #fff;
+  background: #10b981;
+  box-shadow: 0 0 0 3px #10b981;
+}
+
+.v2634-corner {
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  margin: -16px;
+  border-radius: 50%;
+  background: #facc15;
+  border: 4px solid #fff;
+  box-shadow: 0 2px 10px #0009;
+  touch-action: none;
+}
+
+.v2634-poly {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.v2634-actions button {
+  min-height: 46px;
+}
+
+.v2634-actions .btn {
+  flex: 1;
+}
+
+.v2634-zoom {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.v2634-zoom b {
+  min-width: 55px;
+  text-align: center;
+}
+
+.v2634-error {
+  padding: 18px;
+  text-align: center;
+}
+
+.v2634-stage.adjust canvas {
+  transform-origin: 0 0;
+}
+
+/* Card dedicata all'acquisizione tramite fotocamera. */
+.v2634-photo-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 92px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.v2634-photo-icon {
+  display: block;
+  font-size: 38px;
+  line-height: 1;
+}
+
+.v2634-photo-card b {
+  display: block;
+  line-height: 1.15;
+}
+
+.v2634-photo-card small {
+  display: block;
+  line-height: 1.2;
+}
+
+@media (max-width: 650px) {
+  .v2634-head {
+    align-items: flex-start;
+  }
+
+  .v2634-head h2 {
+    font-size: 18px;
+    margin: 0;
+  }
+
+  .v2634-stage {
+    min-height: 62vh;
+  }
+
+  .v2634-actions {
+    justify-content: center;
+  }
+
+  .v2634-actions button {
+    padding: 9px 10px;
+  }
+
+  .v2634-photo-icon {
+    font-size: 34px;
+  }
 }
