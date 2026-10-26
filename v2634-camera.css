@@ -139,31 +139,42 @@
 }
 
 /* Card dedicata all'acquisizione tramite fotocamera. */
-.v2634-photo-card {
-  display: flex;
+.v2634-camera-path {
+  position: relative;
+  display: flex !important;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start !important;
   justify-content: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 92px;
-  text-align: center;
+  gap: 4px;
+  min-height: 100%;
+  text-align: left !important;
   cursor: pointer;
 }
 
-.v2634-photo-icon {
+.v2634-camera-path .v2634-path-number {
+  align-self: flex-start;
+}
+
+.v2634-camera-path .v2634-photo-icon {
+  align-self: center;
   display: block;
-  font-size: 38px;
+  margin: 0 auto 2px;
+  font-size: 34px;
   line-height: 1;
 }
 
-.v2634-photo-card b {
+.v2634-camera-path b,
+.v2634-camera-path small {
   display: block;
+  width: 100%;
+  text-align: center;
+}
+
+.v2634-camera-path b {
   line-height: 1.15;
 }
 
-.v2634-photo-card small {
-  display: block;
+.v2634-camera-path small {
   line-height: 1.2;
 }
 

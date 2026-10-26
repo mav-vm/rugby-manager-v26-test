@@ -192,36 +192,58 @@
   function decorate() {
     const scan = document.querySelector('#awayScan');
     const img = document.querySelector('#awayImage');
+    const manual = document.querySelector('#manualAway');
+    const finalStep = document.querySelector('.final-step');
 
+    /* Percorso 2: acquisizione diretta con fotocamera. */
     if (scan && !scan.dataset.v2634) {
       scan.dataset.v2634 = '1';
       const label = scan.closest('label.upload');
+
       if (label) {
+        label.classList.add('v2634-camera-path');
         label.innerHTML = `
-          <span>2</span>
-          <div class="v2634-photo-card">
-            <span class="v2634-photo-icon" aria-hidden="true">📷</span>
-            <b>Acquisisci FIR con fotocamera</b>
-            <small>Fotocamera guidata con calibrazione e OCR</small>
-          </div>`;
+          <span class="v2634-path-number">2</span>
+          <span class="v2634-photo-icon" aria-hidden="true">📷</span>
+          <b>Acquisisci con fotocamera</b>
+          <small>Fotocamera guidata con calibrazione e OCR</small>`;
         label.setAttribute('role', 'button');
         label.setAttribute('tabindex', '0');
         label.setAttribute('aria-label', 'Apri la fotocamera per acquisire il foglio FIR');
-        label.onclick = e => { e.preventDefault(); openCamera(); };
+        label.onclick = e => {
+          e.preventDefault();
+          openCamera();
+        };
         label.onkeydown = e => {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCamera(); }
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openCamera();
+          }
         };
       }
     }
 
+    /* Percorso 3: immagine gia presente sul telefono. */
     if (img && !img.dataset.v2634) {
       img.dataset.v2634 = '1';
+      const imageLabel = img.closest('label.upload');
+      const imageNumber = imageLabel?.querySelector(':scope > span');
+      if (imageNumber) imageNumber.textContent = '3';
+
       img.onchange = e => {
         const f = e.target.files?.[0];
         e.target.value = '';
         if (f) loadInput(f, 'Immagine importata');
       };
     }
+
+    /* Percorso 4: inserimento manuale. */
+    const manualNumber = manual?.querySelector(':scope > span');
+    if (manualNumber) manualNumber.textContent = '4';
+
+    /* Il tabellone diventa il passo 5. */
+    const finalNumber = finalStep?.querySelector('small');
+    if (finalNumber) finalNumber.textContent = 'PASSO 5';
   }
 
   const baseReport = generateReport;
