@@ -25,3 +25,40 @@
  if(typeof v2631Roster==='function')v2631Roster=function(m,side){const r=side==='home'?m.homePlayers:m.awayPlayers,initial=r.filter(p=>p.intervals?.some(i=>i.in===0)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999)),used=new Set(initial.map(p=>p.id)),parts=[];for(const p of initial){const changes=m.events.filter(e=>e.type==='Cambio'&&e.side===side&&e.outId===p.id).slice().reverse();changes.forEach(e=>used.add(e.inId));parts.push(`${v2631PlayerName(p,r)}${p.initialRole||p.role?` [${p.initialRole||p.role}]`:''}`+(changes.length?' ('+changes.map(e=>`${e.time.label} ${v2631PlayerName(r.find(q=>q.id===e.inId),r)}${e.entryRole?' ['+e.entryRole+']':''}`).join(', ')+')':''))}const rest=r.filter(p=>!used.has(p.id)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999));if(rest.length)parts.push('Panchina: '+rest.map(p=>`${v2631PlayerName(p,r)}${p.flags?.includes('1L')?' (1L)':''}`).join(', '));return parts.join('; ')};
  toast('v26.3.8-test: maglie libere e ruoli separati attivi');
 })();
+
+/* v26.3.8-test r2: normalizzazione maiuscola e blocco maglie duplicate. */
+(function(){
+ const jerseyValue=v=>String(v??'').trim().toUpperCase();
+ function duplicateGroups(players){
+  const groups=new Map();
+  for(const p of players){
+   const number=jerseyValue(p.number);
+   if(!number)continue;
+   if(!groups.has(number))groups.set(number,[]);
+   groups.get(number).push({...p,number});
+  }
+  return [...groups.entries()].filter(([,list])=>list.length>1);
+ }
+ function showDuplicatePopup(groups){
+  document.querySelector('#v2638DuplicateJersey')?.remove();
+  document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="v2638DuplicateJersey"><div class="modalbox"><h2>Maglie duplicate</h2><p>Correggi le maglie indicate prima di confermare la rosa.</p>${groups.map(([number,list])=>`<section class="v2638-duplicate-group"><h3>Maglia #${esc(number)}</h3>${list.map(p=>`<div class="v2638-duplicate-player"><b>${esc([p.name,p.surname].filter(Boolean).join(' ')||'Nominativo non indicato')}</b><small>${esc(p.role||p.currentRole||p.initialRole||'Ruolo non specificato')} · ${p.status==='FIELD'?'Titolare':'Riserva'}</small></div>`).join('')}</section>`).join('')}<button id="v2638DuplicateClose" class="btn full">TORNA ALLA ROSA</button></div></div>`);
+  document.querySelector('#v2638DuplicateClose').onclick=()=>document.querySelector('#v2638DuplicateJersey').remove();
+ }
+ function fromHomeReview(){return [...document.querySelectorAll('#homeReview .home-review-row')].map(r=>({number:r.querySelector('.num')?.value,name:r.querySelector('.nam')?.value,surname:r.querySelector('.sur')?.value,role:r.querySelector('.role')?.value,status:r.querySelector('.st')?.value}))}
+ function fromAwayEditor(){return [...document.querySelectorAll('.roster-editor .player-edit')].map(r=>{const full=String(r.querySelector('.fullname')?.value||'').trim().split(/\s+/);return{number:r.querySelector('.num')?.value,name:full.slice(1).join(' '),surname:full[0]||'',role:r.querySelector('.role')?.value,status:r.querySelector('.st')?.value}})}
+ function normalizeInput(input){if(!input?.matches?.('.num,#newNumber'))return;const pos=input.selectionStart;input.value=jerseyValue(input.value);try{input.setSelectionRange(pos,pos)}catch{}}
+ document.addEventListener('input',e=>normalizeInput(e.target),true);
+ document.addEventListener('change',e=>normalizeInput(e.target),true);
+ document.addEventListener('click',e=>{
+  const saveHome=e.target.closest?.('#saveHome');
+  const saveAway=e.target.closest?.('#saveAway');
+  if(!saveHome&&!saveAway)return;
+  const players=saveHome?fromHomeReview():fromAwayEditor();
+  players.forEach(p=>p.number=jerseyValue(p.number));
+  const duplicates=duplicateGroups(players);
+  if(!duplicates.length)return;
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  showDuplicatePopup(duplicates);
+ },true);
+ window.RUGBY_JERSEY={normalize:jerseyValue,duplicates:duplicateGroups,check(players){const groups=duplicateGroups(players);if(groups.length)showDuplicatePopup(groups);return groups.length===0}};
+})();

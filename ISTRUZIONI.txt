@@ -15,6 +15,9 @@ Correzioni:
 - ruolo della riserva scelto al cambio o alla temporanea;
 - ricerca Live prioritaria per maglia;
 - tabellino ordinato secondo l'ordine FIR, non per numero di maglia;
-- cache rugby-fir-v26-3-8-test-r1.
+- cache rugby-fir-v26-3-8-test-r2.
 
 Dopo GitHub Pages chiudere completamente la PWA TEST e riaprirla.
+
+- normalizzazione automatica delle maglie in STAMPATELLO MAIUSCOLO;
+- blocco conferma rosa con popup dettagliato in presenza di maglie duplicate.
