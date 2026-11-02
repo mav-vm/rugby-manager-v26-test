@@ -1,1 +1,0 @@
-Revisione rosa casa, omonimi, controllo trasformazione, resumedAt e note stato gara.
