@@ -1,0 +1,1 @@
+.data-manager{max-width:520px}.data-manager p{line-height:1.55}.data-import{display:flex!important;align-items:center;justify-content:center;cursor:pointer;min-height:48px}#dataManagerBtn small{display:block}nav{column-gap:2px}@media(max-width:420px){nav button{font-size:17px}nav small{font-size:9px}}
