@@ -1,0 +1,25 @@
+RUGBY MATCH MANAGER FIR v26.3.7 - AGGIORNAMENTO UNICO
+
+Caricare nella radice del repository ufficiale tutti questi file:
+- index.html
+- manifest.json
+- service-worker.js
+- v261-ui.js
+- v2637-feedback.js
+- v2637-feedback.css
+
+I file con lo stesso nome devono essere sovrascritti.
+I due file v2637 devono essere aggiunti.
+
+Commit consigliato:
+Release Rugby Match Manager FIR v26.3.7
+
+Contenuto:
+- apertura iniziale su Preparazione partita;
+- feedback immediato durante importazione FIR/OCR e salvataggio;
+- protezione dai doppi tocchi;
+- rimozione della dicitura V26.1 - Preparazione guidata;
+- versione applicativa v26.3.7;
+- cache PWA rugby-fir-v26-3-7-r4.
+
+Dopo il commit attendere GitHub Pages, chiudere completamente la PWA e riaprirla.

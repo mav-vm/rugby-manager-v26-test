@@ -23,7 +23,7 @@
 
  formationText=function(m,side){const r=side==='home'?m.homePlayers:m.awayPlayers,initial=r.filter(p=>p.intervals?.some(i=>i.in===0)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999)),used=new Set(initial.map(p=>p.id));return initial.map(p=>{const changes=m.events.filter(x=>['Cambio','Cambio temporaneo'].includes(x.type)&&x.side===side&&x.outId===p.id).slice().reverse();changes.forEach(x=>used.add(x.inId));return `${reportName(p,r)}${p.initialRole||p.role?` [${p.initialRole||p.role}]`:''}`+(changes.length?' ('+changes.map(x=>`${x.time.label} ${reportName(r.find(q=>q.id===x.inId),r)}${x.entryRole?' ['+x.entryRole+']':''}`).join(', ')+')':'')}).join('; ')};
  if(typeof v2631Roster==='function')v2631Roster=function(m,side){const r=side==='home'?m.homePlayers:m.awayPlayers,initial=r.filter(p=>p.intervals?.some(i=>i.in===0)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999)),used=new Set(initial.map(p=>p.id)),parts=[];for(const p of initial){const changes=m.events.filter(e=>e.type==='Cambio'&&e.side===side&&e.outId===p.id).slice().reverse();changes.forEach(e=>used.add(e.inId));parts.push(`${v2631PlayerName(p,r)}${p.initialRole||p.role?` [${p.initialRole||p.role}]`:''}`+(changes.length?' ('+changes.map(e=>`${e.time.label} ${v2631PlayerName(r.find(q=>q.id===e.inId),r)}${e.entryRole?' ['+e.entryRole+']':''}`).join(', ')+')':''))}const rest=r.filter(p=>!used.has(p.id)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999));if(rest.length)parts.push('Panchina: '+rest.map(p=>`${v2631PlayerName(p,r)}${p.flags?.includes('1L')?' (1L)':''}`).join(', '));return parts.join('; ')};
- toast('v26.3.8-test: maglie libere e ruoli separati attivi');
+ toast('...');
 })();
 
 /* v26.3.8-test r2: normalizzazione maiuscola e blocco maglie duplicate. */

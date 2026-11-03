@@ -1,0 +1,64 @@
+'use strict';
+/* v26.3.8-test: maglia libera, ruolo indipendente, qualifica 1L e ruolo assegnato al cambio. */
+(function(){
+ const ROLES=['Non specificato','Pilone sinistro','Pilone destro','Pilone','Tallonatore','Seconda linea','Flanker','Numero 8','Mediano di mischia','Mediano di apertura','Centro','Ala','Estremo'];
+ const jersey=p=>String(p?.number??'').trim().toUpperCase();
+ const statusLabel=p=>p.status==='BENCH'?'Riserva':p.status==='FIELD'||p.status==='TEMP_IN'?'In campo':p.status==='TEMP_OUT'?'Fuori temporaneamente':'Fuori';
+ const roleOf=p=>String(p?.currentRole||p?.initialRole||p?.role||'').trim();
+ function normalizePlayer(p,index){if(!p)return p;p.number=jersey(p);p.firOrder=p.firOrder??index??999;p.flags=Array.isArray(p.flags)?p.flags:[];if(p.status==='FIELD'&&!p.initialRole)p.initialRole=String(p.role||'');if(p.status==='FIELD'&&!p.currentRole)p.currentRole=p.initialRole;if(p.status==='BENCH'&&p.initialRole==null)p.initialRole='';if(p.status==='BENCH'&&p.currentRole==null)p.currentRole='';return p}
+ function migrate(){[S.homeRoster,S.awayRoster,S.draft?.homePlayers,S.draft?.awayPlayers].filter(Array.isArray).forEach(r=>r.forEach(normalizePlayer));(S.matches||[]).forEach(m=>[m.homePlayers,m.awayPlayers].filter(Array.isArray).forEach(r=>r.forEach(normalizePlayer)));save()}
+ migrate();
+
+ displayName=function(p,r){if(!p)return'';const same=(r||[]).filter(x=>norm(x.surname)===norm(p.surname));return same.length>1?[p.name,p.surname].filter(Boolean).join(' '):p.surname};
+ reportName=(p,r)=>displayName(p,r);
+
+ choosePlayer=function(side,title,filter,cb,allowNone=true){const r=rosterSide(side),list=r.filter(filter);document.body.insertAdjacentHTML('beforeend',`<div class="modal"><div class="modalbox"><h2>${esc(title)}</h2><input id="searchPlayer" placeholder="Cerca maglia, nome, cognome o ruolo"><div class="players">${list.map(p=>`<button data-player="${p.id}"><b><span class="v2638-jersey">#${esc(jersey(p)||'-')}</span> ${esc(displayName(p,r))}</b><small>${esc(statusLabel(p))}${roleOf(p)?' · '+esc(roleOf(p)):''}${p.flags?.length?' · '+esc(p.flags.join('/')):''}</small></button>`).join('')}</div>${allowNone?'<button id="nonePlayer" class="outline full">NN - Giocatore non definito</button>':''}<button id="cancelPlayer" class="outline full">Annulla</button></div></div>`);const modal=document.querySelector('.modal:last-of-type');modal.querySelector('#searchPlayer').oninput=e=>modal.querySelectorAll('[data-player]').forEach(b=>b.hidden=!norm(b.textContent).includes(norm(e.target.value)));modal.querySelectorAll('[data-player]').forEach(b=>b.onclick=()=>{const p=r.find(x=>x.id===b.dataset.player);modal.remove();cb(p)});if(allowNone)modal.querySelector('#nonePlayer').onclick=()=>{modal.remove();cb(null)};modal.querySelector('#cancelPlayer').onclick=()=>modal.remove()};
+
+ function chooseEntryRole(inp,out,cb){const proposed=roleOf(out)||'Non specificato',firstLine=inp.flags?.includes('1L');const choices=[...(firstLine?['Pilone sinistro','Pilone destro','Pilone','Tallonatore']:[]),proposed,...ROLES].filter((x,i,a)=>x&&a.indexOf(x)===i);document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="v2638Role"><div class="modalbox"><h2>Ruolo assunto in campo</h2><p><b>#${esc(jersey(inp)||'-')} ${esc(inp.surname||'')}</b>${firstLine?' · qualifica 1L':''}</p><label>Ruolo<select id="v2638EntryRole">${choices.map(x=>`<option ${x===proposed?'selected':''}>${esc(x)}</option>`).join('')}</select></label><p class="help">La maglia non determina il ruolo. 1L indica l'idoneità alla prima linea.</p><button id="v2638RoleOk" class="btn full">CONFERMA CAMBIO</button><button id="v2638RoleCancel" class="outline full">ANNULLA</button></div></div>`);const m=document.querySelector('#v2638Role');m.querySelector('#v2638RoleOk').onclick=()=>{const role=m.querySelector('#v2638EntryRole').value;m.remove();cb(role)};m.querySelector('#v2638RoleCancel').onclick=()=>m.remove()}
+
+ changeFlow=function(side,temp){choosePlayer(side,temp?'Chi esce temporaneamente?':'Chi esce?',p=>p.status==='FIELD'||p.status==='TEMP_IN',out=>{if(!out)return;choosePlayer(side,'Chi entra?',p=>p.status==='BENCH'||p.status==='OUT'||p.status==='TEMP_OUT',inp=>{if(!inp)return;chooseEntryRole(inp,out,entryRole=>{const time=stamp(),at=time.absoluteSecond??time.second,r=rosterSide(side),exitRole=roleOf(out),detail=`#${jersey(out)||'-'} ${displayName(out,r)} → #${jersey(inp)||'-'} ${displayName(inp,r)} · ${entryRole}`;out.intervals=out.intervals||[];inp.intervals=inp.intervals||[];if(out.intervals.at(-1))out.intervals.at(-1).out=at;inp.intervals.push({in:at,out:null});out.previousRole=exitRole;out.currentRole='';inp.previousRole=roleOf(inp);inp.currentRole=entryRole;out.status=temp?'TEMP_OUT':'OUT';inp.status=temp?'TEMP_IN':'FIELD';const ev={id:uid(),side,team:side==='home'?S.draft.setup.home:S.draft.setup.away,type:temp?'Cambio temporaneo':'Cambio',detail,time,points:0,outId:out.id,inId:inp.id,exitRole,entryRole,outJersey:jersey(out),inJersey:jersey(inp)};S.draft.events.unshift(ev);if(temp)S.draft.temporary.push({id:ev.id,side,team:ev.team,outId:out.id,inId:inp.id,outName:displayName(out,r),inName:displayName(inp,r),start:time,end:null,exitRole,entryRole});save();match()})},false)},false)};
+
+ const oldTemp=window.v2632TemporaryMenu;
+ if(typeof oldTemp==='function')window.v2632TemporaryMenu=function(){oldTemp();const m=document.querySelector('#temporaryBothModal');if(!m)return;m.querySelectorAll('[data-v2632-close]').forEach(b=>{const old=b.onclick;b.onclick=()=>{const x=S.draft.temporary.find(y=>y.id===b.dataset.v2632Close),r=x&&rosterSide(x.side),out=r?.find(p=>p.id===x.outId),inp=r?.find(p=>p.id===x.inId);if(out)out.currentRole=x.exitRole||out.initialRole||out.role||'';if(inp)inp.currentRole=inp.previousRole||'';old()}})};
+
+ formationText=function(m,side){const r=side==='home'?m.homePlayers:m.awayPlayers,initial=r.filter(p=>p.intervals?.some(i=>i.in===0)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999)),used=new Set(initial.map(p=>p.id));return initial.map(p=>{const changes=m.events.filter(x=>['Cambio','Cambio temporaneo'].includes(x.type)&&x.side===side&&x.outId===p.id).slice().reverse();changes.forEach(x=>used.add(x.inId));return `${reportName(p,r)}${p.initialRole||p.role?` [${p.initialRole||p.role}]`:''}`+(changes.length?' ('+changes.map(x=>`${x.time.label} ${reportName(r.find(q=>q.id===x.inId),r)}${x.entryRole?' ['+x.entryRole+']':''}`).join(', ')+')':'')}).join('; ')};
+ if(typeof v2631Roster==='function')v2631Roster=function(m,side){const r=side==='home'?m.homePlayers:m.awayPlayers,initial=r.filter(p=>p.intervals?.some(i=>i.in===0)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999)),used=new Set(initial.map(p=>p.id)),parts=[];for(const p of initial){const changes=m.events.filter(e=>e.type==='Cambio'&&e.side===side&&e.outId===p.id).slice().reverse();changes.forEach(e=>used.add(e.inId));parts.push(`${v2631PlayerName(p,r)}${p.initialRole||p.role?` [${p.initialRole||p.role}]`:''}`+(changes.length?' ('+changes.map(e=>`${e.time.label} ${v2631PlayerName(r.find(q=>q.id===e.inId),r)}${e.entryRole?' ['+e.entryRole+']':''}`).join(', ')+')':''))}const rest=r.filter(p=>!used.has(p.id)).sort((a,b)=>(a.firOrder??999)-(b.firOrder??999));if(rest.length)parts.push('Panchina: '+rest.map(p=>`${v2631PlayerName(p,r)}${p.flags?.includes('1L')?' (1L)':''}`).join(', '));return parts.join('; ')};
+ toast('v26.3.8-test: maglie libere e ruoli separati attivi');
+})();
+
+/* v26.3.8-test r2: normalizzazione maiuscola e blocco maglie duplicate. */
+(function(){
+ const jerseyValue=v=>String(v??'').trim().toUpperCase();
+ function duplicateGroups(players){
+  const groups=new Map();
+  for(const p of players){
+   const number=jerseyValue(p.number);
+   if(!number)continue;
+   if(!groups.has(number))groups.set(number,[]);
+   groups.get(number).push({...p,number});
+  }
+  return [...groups.entries()].filter(([,list])=>list.length>1);
+ }
+ function showDuplicatePopup(groups){
+  document.querySelector('#v2638DuplicateJersey')?.remove();
+  document.body.insertAdjacentHTML('beforeend',`<div class="modal" id="v2638DuplicateJersey"><div class="modalbox"><h2>Maglie duplicate</h2><p>Correggi le maglie indicate prima di confermare la rosa.</p>${groups.map(([number,list])=>`<section class="v2638-duplicate-group"><h3>Maglia #${esc(number)}</h3>${list.map(p=>`<div class="v2638-duplicate-player"><b>${esc([p.name,p.surname].filter(Boolean).join(' ')||'Nominativo non indicato')}</b><small>${esc(p.role||p.currentRole||p.initialRole||'Ruolo non specificato')} · ${p.status==='FIELD'?'Titolare':'Riserva'}</small></div>`).join('')}</section>`).join('')}<button id="v2638DuplicateClose" class="btn full">TORNA ALLA ROSA</button></div></div>`);
+  document.querySelector('#v2638DuplicateClose').onclick=()=>document.querySelector('#v2638DuplicateJersey').remove();
+ }
+ function fromHomeReview(){return [...document.querySelectorAll('#homeReview .home-review-row')].map(r=>({number:r.querySelector('.num')?.value,name:r.querySelector('.nam')?.value,surname:r.querySelector('.sur')?.value,role:r.querySelector('.role')?.value,status:r.querySelector('.st')?.value}))}
+ function fromAwayEditor(){return [...document.querySelectorAll('.roster-editor .player-edit')].map(r=>{const full=String(r.querySelector('.fullname')?.value||'').trim().split(/\s+/);return{number:r.querySelector('.num')?.value,name:full.slice(1).join(' '),surname:full[0]||'',role:r.querySelector('.role')?.value,status:r.querySelector('.st')?.value}})}
+ function normalizeInput(input){if(!input?.matches?.('.num,#newNumber'))return;const pos=input.selectionStart;input.value=jerseyValue(input.value);try{input.setSelectionRange(pos,pos)}catch{}}
+ document.addEventListener('input',e=>normalizeInput(e.target),true);
+ document.addEventListener('change',e=>normalizeInput(e.target),true);
+ document.addEventListener('click',e=>{
+  const saveHome=e.target.closest?.('#saveHome');
+  const saveAway=e.target.closest?.('#saveAway');
+  if(!saveHome&&!saveAway)return;
+  const players=saveHome?fromHomeReview():fromAwayEditor();
+  players.forEach(p=>p.number=jerseyValue(p.number));
+  const duplicates=duplicateGroups(players);
+  if(!duplicates.length)return;
+  e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+  showDuplicatePopup(duplicates);
+ },true);
+ window.RUGBY_JERSEY={normalize:jerseyValue,duplicates:duplicateGroups,check(players){const groups=duplicateGroups(players);if(groups.length)showDuplicatePopup(groups);return groups.length===0}};
+})();

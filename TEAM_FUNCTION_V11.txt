@@ -1,0 +1,22 @@
+Sostituire nel file app.js l'intera funzione team(...) con questa funzione:
+
+function team(side,name,score){
+  const actions=[
+    {label:'Meta',short:'META',points:5},
+    {label:'Trasformazione',short:'TRASF.',points:2},
+    {label:'Punizione',short:'PUNIZ.',points:3},
+    {label:'Drop',short:'DROP',points:3},
+    {label:'Giallo',short:'GIALLO',points:0},
+    {label:'Rosso',short:'ROSSO',points:0}
+  ];
+  return `<section class="card team ${side==='away'?'away':''}">
+    <h3>${esc(name)}</h3>
+    <div class="score">${score}</div>
+    <div class="buttons">
+      ${actions.map(a=>`<button data-act="${a.label}" data-side="${side}" data-p="${a.points}">
+        <span class="action-name">${a.short}</span>
+        ${a.points?`<span class="action-points">+${a.points}</span>`:''}
+      </button>`).join('')}
+    </div>
+  </section>`
+}
